@@ -1,5 +1,5 @@
 import socket
-import boto
+import boto.ec2
 import pylibmc
 import time
 
@@ -19,7 +19,7 @@ class CacheManager():
       server_sockets.append(server_socket)
 
       # connect to EC2
-      self.conn = boto.ec2.connect_to_region("us-west-2b")
+      self.conn = boto.ec2.connect_to_region("us-west-2")
 
       # cache machine ips
       self.cache_machine_ips = []
@@ -41,13 +41,13 @@ class CacheManager():
 
     def CreateNewCacheMachine(self):
       # Create script to run on instance
-      script = "sudo apt-get install memcached\n sudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf \n sudo service memcache restart"
+      script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
       # Create a new cache instance
-      reservation = self.conn.run_instances('ami-5189a661', key_name='unicorn', instance_type='t1.micro', security_groups=['launch-wizard-6'], user_data=script)
+      reservation = self.conn.run_instances('ami-5189a661', key_name='unicorn', instance_type='t2.micro', security_groups=['launch-wizard-6'], user_data=script)
 
       instance = reservation.instances[0]
 
-      while instance.update() != running:
+      while instance.update() != 'running':
         time.sleep(5) # wait for five seconds
 
       ip = instance.ip_address

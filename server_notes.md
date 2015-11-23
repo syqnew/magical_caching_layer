@@ -21,4 +21,25 @@ Restart the memcached server using
 
 to load the new configuration file.
 
+Cache Manager Instance
+----------------------
+Need to install pip
 
+  sudo apt-get install python-pip
+
+Need to install libmemcahed in order to get pylibmc
+
+  sudo apt-get install libmemcached10
+
+Need to install the proper python packages
+
+  sudo pip install boto
+  sudo apt-get install python-pylibmc
+
+Add the access keys in ~/.boto. It looks like this
+
+  [Credentials]
+  aws_access_key_id = {ACCESS KEY ID}
+  aws_secret_access_key = {SECRET ACCESS KEY}
+
+  
