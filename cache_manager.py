@@ -1,4 +1,4 @@
-import socket
+import socket, select
 import boto.ec2
 import pylibmc
 import time
@@ -24,8 +24,9 @@ class CacheManager():
       # cache machine ips
       self.cache_machine_ips = []
       self.memcached = []
-      self.worst_hit_rate = None
+      self.ip_to_memcached = {}
       self.CreateNewCacheMachine()
+      self.cache_instance_ids = {}
 
       self.hit_cache_range = hit_cache_range #tuple
 
@@ -34,10 +35,13 @@ class CacheManager():
       for server_socket in self.server_sockets:
         server_socket.send(self.cache_list.endcode())
 
-
-# TODO: Need to add in logic to receive the "send list message" and broadcast cache list to servers
     def ListenOnSockets(self):
-
+      ready_socks, _, _ = select.select(self.server_sockets, [], [])
+      for sock in ready_socks:
+        message = sock.recv(64).decode()
+        if message == "Retrieve_cache_list":
+          # send over the cache list
+          sock.send(self.cache_list.encode())
 
     def CreateNewCacheMachine(self):
       # Create script to run on instance
@@ -52,19 +56,47 @@ class CacheManager():
 
       ip = instance.ip_address
       self.cache_machine_ips.append(ip)
-      self.memcached.append(pylibmc.Client([ip]))
+      mc = pylibmc.Client([ip])
+      self.memcached.append(mc)
+      self.ip_to_memcached[ip] = mc 
+      self.cache_instance_ids[ip] = instance.id
 
-  def TerminateCacheMachine(self):
-  # Determine which cache machine to terminate
+  def TerminateCacheMachine(self, num_keys):
+    # Need at least one machine in the cache
+    if len(self.cache_machine_ips) == 1: 
+      return
+
+    ip_with_lowest_hit_rate = None
+    hit_rate = 2
+    # Determine which cache machine to terminate
+    for ip in self.cache_machine_ips:
+      mc = self.ip_to_memcached[ip]
+      stats = mc.get_stats()
+      hr = self.CalculateHitRate(stats)
+      if hr < hit_rate:
+        hit_rate = hr
+        ip_with_lowest_hit_rate = ip
+
+    # Get instance id of that cache machine
+    instance = self.cache_instance_id[ip_with_lowest_hit_rate]
+
+    # TODO: figure out how to random select num_keys from the terminated instance
+
+    # Terminate the instance
+    self.conn.terminate_instances([instance])
+
+  def CalculateHitRate(self, stats):
+    hits = stats[0][1]["get_hits"]
+    misses = stats[0][1]["get_misses"]
+    hit_rate = hits / (hits +  misses)
+    return hit_rate
 
   def GetAverageHitRate(self):
     averages = []
 
     for mem in self.memcached: 
       stats = mem.get_stats()  
-      hits = stats[0][1]["get_hits"]
-      misses = stats[0][1]["get_misses"]
-      hit_rate = hits / (hits +  misses)
+      hit_rate = self.CalculateHitRate(stats)
       averages.append(hit_rate)
 
     # compute the average
