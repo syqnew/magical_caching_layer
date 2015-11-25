@@ -109,7 +109,7 @@ class CacheManager():
     # Check if average within range
     if average < self.hit_rate_range[0]:
       self.ExpandCachingLayer()
-    else if average > self.hit_rate_range[1]:
+    elif average > self.hit_rate_range[1]:
       self.ShrinkCachingLayer()
 
 
@@ -122,9 +122,9 @@ class CacheManager():
 
 cache_manager = CacheManager()
 # periodically ping the cache machines
-  while True:
-    cache_manager.AlterCachingLayer()
-    time.sleep(5) # wait five seconds
+while True:
+  cache_manager.AlterCachingLayer()
+  time.sleep(5) # wait five seconds
 
 
 ### TODO: Rebalancing -- expand/shrink cache
