@@ -16,50 +16,50 @@ class CacheManager():
       server_socket.bind(('', port_num))
       server_socket.listen(max_client)
       server_socket.accept()
-      server_sockets.append(server_socket)
+      self.server_sockets.append(server_socket)
 
-      # connect to EC2
-      self.conn = boto.ec2.connect_to_region("us-west-2")
+    # connect to EC2
+    self.conn = boto.ec2.connect_to_region("us-west-2")
 
-      # cache machine ips
-      self.cache_machine_ips = []
-      self.memcached = []
-      self.ip_to_memcached = {}
-      self.CreateNewCacheMachine()
-      self.cache_instance_ids = {}
+    # cache machine ips
+    self.cache_machine_ips = []
+    self.memcached = []
+    self.ip_to_memcached = {}
+    self.cache_instance_ids = {}
+    self.CreateNewCacheMachine()
 
-      self.hit_cache_range = hit_cache_range #tuple
+    self.hit_cache_range = hit_cache_range #tuple
 
-    # Broadcasting the cache list to client servers
-    def sendCacheList(self):
-      for server_socket in self.server_sockets:
-        server_socket.send(self.cache_list.endcode())
+  # Broadcasting the cache list to client servers
+  def sendCacheList(self):
+    for server_socket in self.server_sockets:
+      server_socket.send(self.cache_list.endcode())
 
-    def ListenOnSockets(self):
-      ready_socks, _, _ = select.select(self.server_sockets, [], [])
-      for sock in ready_socks:
-        message = sock.recv(64).decode()
-        if message == "Retrieve_cache_list":
-          # send over the cache list
-          sock.send(self.cache_list.encode())
+  def ListenOnSockets(self):
+    ready_socks, _, _ = select.select(self.server_sockets, [], [])
+    for sock in ready_socks:
+      message = sock.recv(64).decode()
+      if message == "Retrieve_cache_list":
+        # send over the cache list
+        sock.send(self.cache_list.encode())
 
-    def CreateNewCacheMachine(self):
-      # Create script to run on instance
-      script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
-      # Create a new cache instance
-      reservation = self.conn.run_instances('ami-5189a661', key_name='unicorn', instance_type='t2.micro', security_groups=['launch-wizard-6'], user_data=script)
+  def CreateNewCacheMachine(self):
+    # Create script to run on instance
+    script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
+    # Create a new cache instance
+    reservation = self.conn.run_instances('ami-5189a661', key_name='unicorn', instance_type='t2.micro', security_groups=['launch-wizard-6'], user_data=script)
 
-      instance = reservation.instances[0]
+    instance = reservation.instances[0]
 
-      while instance.update() != 'running':
-        time.sleep(5) # wait for five seconds
+    while instance.update() != 'running':
+      time.sleep(5) # wait for five seconds
 
-      ip = instance.ip_address
-      self.cache_machine_ips.append(ip)
-      mc = pylibmc.Client([ip])
-      self.memcached.append(mc)
-      self.ip_to_memcached[ip] = mc 
-      self.cache_instance_ids[ip] = instance.id
+    ip = instance.ip_address
+    self.cache_machine_ips.append(ip)
+    mc = pylibmc.Client([ip])
+    self.memcached.append(mc)
+    self.ip_to_memcached[ip] = mc 
+    self.cache_instance_ids[ip] = instance.id
 
   def TerminateCacheMachine(self, num_keys):
     # Need at least one machine in the cache
@@ -120,7 +120,7 @@ class CacheManager():
     print "expand cache layer"
 
 
-cache_manager = CacheManager()
+cache_manager = CacheManager(1, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
   cache_manager.AlterCachingLayer()
