@@ -8,17 +8,24 @@ class Server():
 
   def __init__(self, cache_manager_address, client_address=('', 5000), maxClient=1):
     # start up the client socket
-    self.client_socket = socket.socket()
-    self.client_socket.bind(client_address)
-    self.client_socket.listen(maxClient)
-    self.client_socket, self.client_addr = (self.client_socket.accept())
+    #self.client_socket = socket.socket()
+    #self.client_socket.bind(client_address)
+    #self.client_socket.listen(maxClient)
+    #print("1")
+    #self.client_socket, self.client_addr = (self.client_socket.accept())
+    
+    print("here")
 
     # start up the manager socket
+    #self.cache_manager_socket = socket.socket()
+    #self.cache_manager_socket.bind(cache_manager_address)
+    #self.cache_manager_socket.listen(maxClient)
+    #self.cache_socket, self.cache_addr = (self.cache_manager_socket.accept())
     self.cache_manager_socket = socket.socket()
-    self.cache_manager_socket.bind(cache_manager_address)
-    self.cache_manager_socket.listen(maxClient)
-    self.cache_socket, self.cache_addr = (self.cache_manager_socket.accept())
+    self.cache_manager_socket.connect(cache_manager_address)
+    
 
+    print("connected")
     # list of all the caches
     self.cache_list = []
 
@@ -30,7 +37,7 @@ class Server():
     self.cache_manager_socket.send("Retrieve_cache_list")
     caches_initialized = False
     while not caches_initialized:
-      data = self.client_manager_socket.recv(64).decode()
+      data = self.cache_manager_socket.recv(64).decode()
       caches = data.split(",")
       for cache in caches:
         self.cache_list.append(cache)
@@ -92,5 +99,5 @@ class Server():
           for ip in l:
             self.ConnectToNewCacheMachine(ip)
 
-Stupid=Server()
-Stupid.ListenRequests()
+Stupid=Server(('52.33.107.185', 5500))
+#Stupid.ListenRequests()

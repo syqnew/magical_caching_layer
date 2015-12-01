@@ -2,7 +2,8 @@ import socket
 import sys
 
 class Client():
-   def __init__(self,Adress=("18.189.106.35", 5000)):
+    #52.32.231.184
+   def __init__(self,Adress=("52.33.107.185", 5500)):
       self.s = socket.socket()
       self.s.connect(Adress)
 
