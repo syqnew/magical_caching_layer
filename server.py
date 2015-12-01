@@ -99,5 +99,5 @@ class Server():
           for ip in l:
             self.ConnectToNewCacheMachine(ip)
 
-Stupid=Server(('52.33.107.185', 5500))
+Stupid=Server(('52.34.191.24', 5500))
 #Stupid.ListenRequests()

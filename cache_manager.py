@@ -1,34 +1,76 @@
-import socket, select
+import select
+from socket import *
+import thread
 import boto.ec2
 import pylibmc
 import time
 
 
-class CacheManager():
+cache_machine_ips = []
 
+
+def handler(clientsocket, clientaddr):
+    global cache_machine_ips
+    while True:
+        data = clientsocket.recv(1024)
+        if not data:
+            break
+        else:
+            print data
+            msg = ','.join(cache_machine_ips)
+            clientsocket.send(msg)
+    clientsocket.close()
+
+
+class CacheManager():
+    
   def __init__(self, client_count, hit_cache_range, max_client=1):
-    self.cache_list = []
-    self.server_sockets = []
+      #self.cache_list = []
+      #self.server_sockets = []
 
     # Open server sockets for all the client servers
-    for port_num in xrange(5500, 5500+client_count, 1):
-      server_socket = socket.socket()
-      server_socket.bind(('', port_num))
-      server_socket.listen(max_client)
-      server_socket.accept()
-      self.server_sockets.append(server_socket)
+    #for port_num in xrange(5500, 5500+client_count, 1):
+    #  server_socket = socket.socket()
+    #  server_socket.bind(('', port_num))
+    #  server_socket.listen(max_client)
+    #  server_socket.accept()
+    # self.server_sockets.append(server_socket)
 
     # connect to EC2
+    print "hi"
     self.conn = boto.ec2.connect_to_region("us-west-2")
 
     # cache machine ips
-    self.cache_machine_ips = []
+    #self.cache_machine_ips = []
     self.memcached = []
     self.ip_to_memcached = {}
     self.cache_instance_ids = {}
     self.CreateNewCacheMachine()
 
     self.hit_cache_range = hit_cache_range #tuple
+    print "I hate life"
+  
+    host = ''
+    port = 5001
+    buf = 1024
+    addr = (host, port)
+    serversocket = socket(AF_INET, SOCK_STREAM)
+    serversocket.bind(addr)
+    serversocket.listen(client_count)
+  
+    counter = 0
+    while True:
+      print "Server is listening for connections\n"
+
+      clientsocket, clientaddr = serversocket.accept()
+      thread.start_new_thread(handler, (clientsocket, clientaddr))
+      counter = counter + 1
+        
+      if counter == 2:
+            #serversocket.close()
+        print "got all the conections!"
+        break
+
 
   # Broadcasting the cache list to client servers
   def sendCacheList(self):
@@ -44,6 +86,7 @@ class CacheManager():
         sock.send(self.cache_list.encode())
 
   def CreateNewCacheMachine(self):
+    global cache_machine_ips
     # Create script to run on instance
     script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
     # Create a new cache instance
@@ -55,21 +98,25 @@ class CacheManager():
       time.sleep(5) # wait for five seconds
 
     ip = instance.ip_address
-    self.cache_machine_ips.append(ip)
+    #self.cache_machine_ips.append(ip)
+    cache_machine_ips.append(ip)
     mc = pylibmc.Client([ip])
     self.memcached.append(mc)
     self.ip_to_memcached[ip] = mc 
     self.cache_instance_ids[ip] = instance.id
 
   def TerminateCacheMachine(self, num_keys):
+    global cache_machine_ips
     # Need at least one machine in the cache
-    if len(self.cache_machine_ips) == 1: 
+    #if len(self.cache_machine_ips) == 1:
+    if len(cache_machine_ips) == 1:
       return
 
     ip_with_lowest_hit_rate = None
     hit_rate = 2
     # Determine which cache machine to terminate
-    for ip in self.cache_machine_ips:
+    #for ip in self.cache_machine_ips:
+    for ip in cache_machine_ips:
       mc = self.ip_to_memcached[ip]
       stats = mc.get_stats()
       hr = self.CalculateHitRate(stats)
@@ -86,8 +133,8 @@ class CacheManager():
     self.conn.terminate_instances([instance])
 
   def CalculateHitRate(self, stats):
-    hits = stats[0][1]["get_hits"]
-    misses = stats[0][1]["get_misses"]
+    hits = float(stats[0][1]["get_hits"])
+    misses = float(stats[0][1]["get_misses"])
     hit_rate = hits / (hits +  misses)
     return hit_rate
 
