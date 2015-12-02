@@ -1,4 +1,5 @@
-import socket, time,os, random
+from socket import *
+import time,os, random
 import boto
 from boto.s3.key import Key 
 import pylibmc
@@ -14,41 +15,37 @@ class Server():
     #print("1")
     #self.client_socket, self.client_addr = (self.client_socket.accept())
     
-    print("here")
-
     # start up the manager socket
     #self.cache_manager_socket = socket.socket()
     #self.cache_manager_socket.bind(cache_manager_address)
     #self.cache_manager_socket.listen(maxClient)
     #self.cache_socket, self.cache_addr = (self.cache_manager_socket.accept())
-    self.cache_manager_socket = socket.socket()
+    self.cache_manager_socket = socket(AF_INET, SOCK_STREAM)
     self.cache_manager_socket.connect(cache_manager_address)
-    
 
-    print("connected")
-    # list of all the caches
+
+    # Get cache machine IPs
     self.cache_list = []
-
-    # connect to S3
-    self.conn = boto.connect_s3()
-    self.bucket = self.conn.create_bucket('magicalunicorn')
-
-    # Grabbing IP address of all the caches
     self.cache_manager_socket.send("Retrieve_cache_list")
-    caches_initialized = False
-    while not caches_initialized:
-      data = self.cache_manager_socket.recv(64).decode()
+    data = self.cache_manager_socket.recv(1024).decode()
+    if not data:
+      print "didn't get the list"
+    else:
+      print "got cache list"
+      print data
       caches = data.split(",")
       for cache in caches:
         self.cache_list.append(cache)
-      if data != None:
-        caches_initialzied = True
+      
+    # connect to S3
+    self.conn = boto.connect_s3()
+    self.bucket = self.conn.create_bucket('magicalunicorn')
 
     # Populate the memcached list
     self.memcached = []
     for ip in self.cache_list:
       temp = pylibmc.Client([ip])
-    self.memcached.append(temp)
+      self.memcached.append(temp)
 
   def Get(self, key):
     value = None
@@ -99,5 +96,5 @@ class Server():
           for ip in l:
             self.ConnectToNewCacheMachine(ip)
 
-Stupid=Server(('52.33.107.185', 5500))
+Stupid=Server(('18.62.20.53', 5001))
 #Stupid.ListenRequests()
