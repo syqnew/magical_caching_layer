@@ -3,6 +3,7 @@ import time,os, random
 import boto
 from boto.s3.key import Key 
 import pylibmc
+import random
 
 class Server():
 
@@ -43,9 +44,14 @@ class Server():
 
     # Populate the memcached list
     self.memcached = []
+    # Keep track of a certain subset of keys in each cache
+    self.keys_in_cache = {}
     for ip in self.cache_list:
       temp = pylibmc.Client([ip])
       self.memcached.append(temp)
+
+      self.keys_in_cache[ip] = []
+
 
   def Get(self, key):
     value = None
@@ -71,14 +77,46 @@ class Server():
       value = k.get_contents_as_string()
       # insert value into caching layer
       cache_machine[key] = value
+      # determine whether or not to perform
+      self.KeepCacheValue(ip, key)
 
     return value
 
+  def KeepCacheValue(self, ip, key):
+    keys = self.keys_in_cache[ip]
+    ran = random.random()
+    if ran > 0.8:
+      key.append(key)
+      if len(key) > 100: 
+        key = key[1:] # remove the oldest key
+  
+  def SendCacheListToManager(self, ip):
+    # Get the key list associated with the cache machine
+    keys = self.keys_in_cache[ip]
+    # Get the values associated with the keys
+    index = self.cache_list.index(ip)
+    mc = self.memcached[index]
+    key_value_pairs = mc.get_multi(keys)
+
+    # Remove ip from cache list
+    del self.cache_list[index]
+    del self.memcached[index]
+
+    # Tell cache manager to terminate the instance
+    self.cache_manager_socket.send("Can_terminate_cache_instance")
+
+    self.InsertValues(key_value_pairs)
+
+  def InsertValues(self, key_value_pairs):
+    for key, value in key_value_pairs.iteritems():
+      # randomly pick a cache machine
+      index = random.randint(0, len(self.memcached) - 1)
+      cache_machine = self.memcached[index]
+      cache_machine[key] = value
 
   def ConnectToNewCacheMachine(self, IpAddress):
     self.cache_list.append(IpAddress)
     self.memcached.append(pylibmc.Client([IpAddress]))
-
 
   def ListenRequests(self):
     while True:
@@ -96,5 +134,5 @@ class Server():
           for ip in l:
             self.ConnectToNewCacheMachine(ip)
 
-Stupid=Server(('52.34.191.24', 5500))
+Stupid=Server(('18.111.82.207', 5001))
 #Stupid.ListenRequests()
