@@ -59,11 +59,20 @@ class Server():
   def Get(self, key):
     value = None
 
+    deactivated_memcaches = []
+    
     # Contact all servers
     for mem in self.memcached: 
-      if key in mem: # found value for key
-        value = mem[key]
-        break
+      try:
+        if key in mem: # found value for key
+          value = mem[key]
+          break
+      except:
+        deactivated_memcaches.append(mem)
+
+    # Remove deactivated_memcaches from the cache list
+    for deactivated_cache in deactivated_memcaches:
+      self.memcached.remove(deactivated_cache)
 
     if not value: # value not in caching layer
     # Randomly contact a memcached server to insert
