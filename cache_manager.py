@@ -55,8 +55,9 @@ class CacheManager():
     #print mc.get_stats()
     
     self.CreateNewCacheMachine()
+    print "Created a cache"
 
-    self.hit_cache_range = hit_cache_range #tuple
+    self.hit_rate_range = hit_cache_range #tuple
     #print "I hate life"
   
     host = ''
@@ -173,7 +174,10 @@ class CacheManager():
         averages.append(hit_rate)
 
     # compute the average
-    return reduce(lambda x, y: x + y, averages) / len(averages)
+    if len(averages) > 0:
+      return sum(averages) / len(averages)
+    else:
+      return -1
 
   def AlterCachingLayer(self):
     # Get average
