@@ -134,5 +134,5 @@ class Server():
           for ip in l:
             self.ConnectToNewCacheMachine(ip)
 
-Stupid=Server(('18.111.82.207', 5001))
+Stupid=Server(('localhost', 5001))
 #Stupid.ListenRequests()

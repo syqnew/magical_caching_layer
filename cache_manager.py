@@ -6,6 +6,8 @@ import pylibmc
 import time
 
 
+
+
 cache_machine_ips = []
 
 
@@ -25,8 +27,8 @@ def handler(clientsocket, clientaddr):
 class CacheManager():
     
   def __init__(self, client_count, hit_cache_range, max_client=1):
-      #self.cache_list = []
-      #self.server_sockets = []
+    self.cache_list = []
+    self.server_sockets = []
 
     # Open server sockets for all the client servers
     #for port_num in xrange(5500, 5500+client_count, 1):
@@ -41,14 +43,21 @@ class CacheManager():
     self.conn = boto.ec2.connect_to_region("us-west-2")
 
     # cache machine ips
-    #self.cache_machine_ips = []
+    self.cache_machine_ips = []
     self.memcached = []
     self.ip_to_memcached = {}
     self.cache_instance_ids = {}
+
+
+    #print "runnign test"
+    #ip = "52.35.8.106"
+    #mc = pylibmc.Client([ip])
+    #print mc.get_stats()
+    
     self.CreateNewCacheMachine()
 
     self.hit_cache_range = hit_cache_range #tuple
-    print "I hate life"
+    #print "I hate life"
   
     host = ''
     port = 5001
@@ -72,7 +81,7 @@ class CacheManager():
         break
 
 
-  # Broadcasting the cache list to client servers
+  # # Broadcasting the cache list to client servers
   def sendCacheList(self):
     for server_socket in self.server_sockets:
       server_socket.send(self.cache_list.endcode())
@@ -86,6 +95,11 @@ class CacheManager():
         sock.send(self.cache_list.encode())
 
   def CreateNewCacheMachine(self):
+    #print "runnign test"
+    #ip = "52.35.8.106"
+    #mc = pylibmc.Client([ip])
+    #print mc.get_stats()
+    
     global cache_machine_ips
     # Create script to run on instance
     script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
@@ -95,12 +109,20 @@ class CacheManager():
     instance = reservation.instances[0]
 
     while instance.update() != 'running':
-      time.sleep(5) # wait for five seconds
+      time.sleep(10) # wait for five seconds
 
+    time.sleep(60)
     ip = instance.ip_address
     #self.cache_machine_ips.append(ip)
     cache_machine_ips.append(ip)
+    
+    #print ip
     mc = pylibmc.Client([ip])
+    #print mc
+    #print mc.get_stats()
+    
+    #print mc.get_stats()
+    
     self.memcached.append(mc)
     self.ip_to_memcached[ip] = mc 
     self.cache_instance_ids[ip] = instance.id
@@ -135,16 +157,20 @@ class CacheManager():
   def CalculateHitRate(self, stats):
     hits = float(stats[0][1]["get_hits"])
     misses = float(stats[0][1]["get_misses"])
+    if (hits + misses) == 0:
+      return -1
     hit_rate = hits / (hits +  misses)
     return hit_rate
 
   def GetAverageHitRate(self):
     averages = []
 
-    for mem in self.memcached: 
+    for mem in self.memcached:
+      print mem
       stats = mem.get_stats()  
       hit_rate = self.CalculateHitRate(stats)
-      averages.append(hit_rate)
+      if hit_rate >= 0:
+        averages.append(hit_rate)
 
     # compute the average
     return reduce(lambda x, y: x + y, averages) / len(averages)
@@ -170,9 +196,10 @@ class CacheManager():
 cache_manager = CacheManager(1, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
-  cache_manager.AlterCachingLayer()
-  time.sleep(5) # wait five seconds
+ cache_manager.AlterCachingLayer()
+ time.sleep(5) # wait five seconds
 
 
 ### TODO: Rebalancing -- expand/shrink cache
+#test()
 
