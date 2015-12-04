@@ -24,6 +24,14 @@ class Server():
     self.cache_manager_socket = socket(AF_INET, SOCK_STREAM)
     self.cache_manager_socket.connect(cache_manager_address)
 
+    # Get special memcached instance that keeps track of the last 20% of keys
+    self.cache_manager_socket.send("Get_special_memcached_instance")
+    special_ip = self.cache_manager_socket.recv(1024).decode()
+    if not special_ip:
+      print "didn't get the special memcached ip"
+    else:
+      print "got special memcached ip"
+    self.special_instance = pylibmc.Client([special_ip])
 
     # Get cache machine IPs
     self.cache_list = []
@@ -44,14 +52,9 @@ class Server():
 
     # Populate the memcached list
     self.memcached = []
-    # Keep track of a certain subset of keys in each cache
-    self.keys_in_cache = {}
     for ip in self.cache_list:
       temp = pylibmc.Client([ip])
       self.memcached.append(temp)
-
-      self.keys_in_cache[ip] = []
-
 
   def Get(self, key):
     value = None
@@ -78,61 +81,22 @@ class Server():
       # insert value into caching layer
       cache_machine[key] = value
       # determine whether or not to perform
-      self.KeepCacheValue(ip, key)
+      self.KeepCacheKey(ip, key)
 
     return value
 
-  def KeepCacheValue(self, ip, key):
-    keys = self.keys_in_cache[ip]
-    ran = random.random()
-    if ran > 0.8:
-      key.append(key)
-      if len(key) > 100: 
-        key = key[1:] # remove the oldest key
+  def KeepCacheKey(self, ip, key):
+    keys = self.special_instance[ip]
+    keys.append(key)
+    if len(keys) > 100:
+      # remove keys until there is only 100
+      remove_index = len(keys) - 100
+      keys = keys[remove_index:]
+    self.special_instance[ip] = keys
   
-  def SendCacheListToManager(self, ip):
-    # Get the key list associated with the cache machine
-    keys = self.keys_in_cache[ip]
-    # Get the values associated with the keys
-    index = self.cache_list.index(ip)
-    mc = self.memcached[index]
-    key_value_pairs = mc.get_multi(keys)
-
-    # Remove ip from cache list
-    del self.cache_list[index]
-    del self.memcached[index]
-
-    # Tell cache manager to terminate the instance
-    self.cache_manager_socket.send("Can_terminate_cache_instance")
-
-    self.InsertValues(key_value_pairs)
-
-  def InsertValues(self, key_value_pairs):
-    for key, value in key_value_pairs.iteritems():
-      # randomly pick a cache machine
-      index = random.randint(0, len(self.memcached) - 1)
-      cache_machine = self.memcached[index]
-      cache_machine[key] = value
-
   def ConnectToNewCacheMachine(self, IpAddress):
     self.cache_list.append(IpAddress)
     self.memcached.append(pylibmc.Client([IpAddress]))
 
-  def ListenRequests(self):
-    while True:
-      # listen on both sockets
-      # http://stackoverflow.com/questions/15101333/is-there-a-way-to-listen-to-multiple-python-sockets-at-once
-      ready_socks,_,_ = select.select([self.client_socket, self.cache_manager_socket], [], []) 
-      for sock in ready_socks:
-        if self.client_socket == sock: 
-          key = self.client_socket.recv(64).decode()
-
-          # assume that data is always a key
-          value = self.Get(key)
-        else: 
-          l = self.cache_manager_socket.recv(64).decode()
-          for ip in l:
-            self.ConnectToNewCacheMachine(ip)
 
 Stupid=Server(('18.111.82.207', 5001))
-#Stupid.ListenRequests()
