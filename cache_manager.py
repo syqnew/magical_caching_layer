@@ -5,11 +5,7 @@ import boto.ec2
 import pylibmc
 import time
 
-
-
-
 cache_machine_ips = []
-
 
 def handler(clientsocket, clientaddr):
     global cache_machine_ips
@@ -30,14 +26,6 @@ class CacheManager():
     self.cache_list = []
     self.server_sockets = []
 
-    # Open server sockets for all the client servers
-    #for port_num in xrange(5500, 5500+client_count, 1):
-    #  server_socket = socket.socket()
-    #  server_socket.bind(('', port_num))
-    #  server_socket.listen(max_client)
-    #  server_socket.accept()
-    # self.server_sockets.append(server_socket)
-
     # connect to EC2
     print "hi"
     self.conn = boto.ec2.connect_to_region("us-west-2")
@@ -54,12 +42,15 @@ class CacheManager():
     #mc = pylibmc.Client([ip])
     #print mc.get_stats()
     
+    self.special_instance = None
+    self.CreateSpecialInstance()
+
     self.CreateNewCacheMachine()
     print "Created a cache"
 
     self.hit_rate_range = hit_cache_range #tuple
-    #print "I hate life"
   
+    # Creating sockets to connect to the servers
     host = ''
     port = 5001
     buf = 1024
@@ -81,27 +72,23 @@ class CacheManager():
         print "got all the conections!"
         break
 
-
-  # # Broadcasting the cache list to client servers
-  def sendCacheList(self):
-    for server_socket in self.server_sockets:
-      server_socket.send(self.cache_list.endcode())
-
-  def ListenOnSockets(self):
-    ready_socks, _, _ = select.select(self.server_sockets, [], [])
-    for sock in ready_socks:
-      message = sock.recv(64).decode()
-      if message == "Retrieve_cache_list":
-        # send over the cache list
-        sock.send(self.cache_list.encode())
-
-  def CreateNewCacheMachine(self):
-    #print "runnign test"
-    #ip = "52.35.8.106"
-    #mc = pylibmc.Client([ip])
-    #print mc.get_stats()
+  def CreateSpecialInstance(self):
+    instance = self.CreateNewMemcachedInstance()
+    self.special_instance = pylibmc.Client([instance.ip_address])
     
+  def CreateNewCacheMachine(self):
     global cache_machine_ips
+    instance = self.CreateNewMemcachedInstance()
+
+    ip = instance.ip_address
+    cache_machine_ips.append(ip)
+    
+    mc = pylibmc.Client([ip])
+    self.memcached.append(mc)
+    self.ip_to_memcached[ip] = mc 
+    self.cache_instance_ids[ip] = instance.id
+    
+  def CreateNewMemcachedInstance(self):
     # Create script to run on instance
     script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
     # Create a new cache instance
@@ -113,20 +100,7 @@ class CacheManager():
       time.sleep(10) # wait for five seconds
 
     time.sleep(60)
-    ip = instance.ip_address
-    #self.cache_machine_ips.append(ip)
-    cache_machine_ips.append(ip)
-    
-    #print ip
-    mc = pylibmc.Client([ip])
-    #print mc
-    #print mc.get_stats()
-    
-    #print mc.get_stats()
-    
-    self.memcached.append(mc)
-    self.ip_to_memcached[ip] = mc 
-    self.cache_instance_ids[ip] = instance.id
+    return instance
 
   def TerminateCacheMachine(self, num_keys):
     global cache_machine_ips
