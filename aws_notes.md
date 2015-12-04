@@ -42,4 +42,10 @@ Add the access keys in ~/.boto. It looks like this
   aws_access_key_id = {ACCESS KEY ID}
   aws_secret_access_key = {SECRET ACCESS KEY}
 
+Blob Sizes
+----------
+
+Small 0.5 MB
+Medium 2 MB
+Large 5 MB
   
