@@ -4,6 +4,7 @@ import thread
 import boto.ec2
 import pylibmc
 import time
+import random
 
 cache_machine_ips = []
 
@@ -33,8 +34,6 @@ class CacheManager():
     # cache machine ips
     self.cache_machine_ips = []
     self.memcached = []
-    self.ip_to_memcached = {}
-    self.cache_instance_ids = {}
 
 
     #print "runnign test"
@@ -85,8 +84,7 @@ class CacheManager():
     
     mc = pylibmc.Client([ip])
     self.memcached.append(mc)
-    self.ip_to_memcached[ip] = mc 
-    self.cache_instance_ids[ip] = instance.id
+    self.special_instance[ip] = []
     
   def CreateNewMemcachedInstance(self):
     # Create script to run on instance
@@ -101,34 +99,7 @@ class CacheManager():
 
     time.sleep(60)
     return instance
-
-  def TerminateCacheMachine(self, num_keys):
-    global cache_machine_ips
-    # Need at least one machine in the cache
-    #if len(self.cache_machine_ips) == 1:
-    if len(cache_machine_ips) == 1:
-      return
-
-    ip_with_lowest_hit_rate = None
-    hit_rate = 2
-    # Determine which cache machine to terminate
-    #for ip in self.cache_machine_ips:
-    for ip in cache_machine_ips:
-      mc = self.ip_to_memcached[ip]
-      stats = mc.get_stats()
-      hr = self.CalculateHitRate(stats)
-      if hr < hit_rate:
-        hit_rate = hr
-        ip_with_lowest_hit_rate = ip
-
-    # Get instance id of that cache machine
-    instance = self.cache_instance_id[ip_with_lowest_hit_rate]
-
-    # TODO: figure out how to random select num_keys from the terminated instance
-
-    # Terminate the instance
-    self.conn.terminate_instances([instance])
-
+  
   def CalculateHitRate(self, stats):
     hits = float(stats[0][1]["get_hits"])
     misses = float(stats[0][1]["get_misses"])
@@ -157,6 +128,9 @@ class CacheManager():
     # Get average
     average = self.GetAverageHitRate()
 
+    if average == -1:
+      return
+
     # Check if average within range
     if average < self.hit_rate_range[0]:
       self.ExpandCachingLayer()
@@ -165,19 +139,72 @@ class CacheManager():
 
 
   def ShrinkCachingLayer(self):
+    global cache_machine_ips
+
+    # if there is only one cache machine, don't terminate it
+    if len(cache_machine_ips) == 1:
+      return
+
     print "shrink cache layer"
+    # Randomly pick an instance to terminate
+    index = random.randint(0, len(cache_machine_ips) - 1)
+    instance = cache_machine_ips[index]
+
+    # Get recent keys from special instance
+    keys = self.special_instance[instance]
+    mc = self.memcached[index]
+    key_value_pairs = mc.get_multi(keys)
+    
+    # Remove from cache_machine_ips and memcached
+    del cache_machine_ips[index]
+    del self.memcached[index]
+
+    # Redistribute keys to other instances
+    for key, value in key_value_pairs.iteritems():
+      i = random.randint(0, len(self.memcached) - 1)
+      cache_machine = self.memcached[i]
+      cache_machine[key] = value
+
+      # Update metadata
+      keys_list = self.special_instance[cache_machine_ips[i]]
+      keys_list.append(key)
+      if len(keys_list) > 100: 
+        new_index = len(keys_list) - 100
+        keys_list = keys_list[new_index:]
+      self.special_instance[cache_machine_ips[i]] = keys_list
+
+    # Terminate instance
+    self.conn.terminate_instances([instance])
 
   def ExpandCachingLayer(self):
+    global cache_machine_ips
     print "expand cache layer"
 
+    # Calculate that number
+    num_keys = 100 / len(cache_machine_ips)
+
+    # Create a new cache machine - side effect adds the ip to cache list already
+    self.CreateNewCacheMachine()
+
+    new_instance = cache_machine_ips[-1]
+    new_keys = []
+    # Query all active cache machines for a certain number
+    for index in range(0, len(cache_machine_ips) - 2):
+      key_list = self.special_instance[cache_machine_ips[index]]
+      key_value_pairs = self.memcached[index].get_multi(key_list)
+      i = 0
+      for key, value in key_value_pairs.iteritems():
+        new_instance[key] = value
+        new_keys.append(key)
+        
+        i += 1
+        if i == num_keys:
+          break
+    self.special_instance[new_instance] = new_keys
 
 cache_manager = CacheManager(1, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
  cache_manager.AlterCachingLayer()
  time.sleep(5) # wait five seconds
-
-
-### TODO: Rebalancing -- expand/shrink cache
-#test()
 
