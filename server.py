@@ -4,6 +4,7 @@ import boto
 from boto.s3.key import Key 
 import pylibmc
 import random
+import sys
 
 class Server():
 
@@ -35,7 +36,9 @@ class Server():
     for ip in self.cache_list:
       temp = pylibmc.Client([ip])
       self.memcached.append(temp)
+      self.special_instance[ip] = []
 
+  # TODO: This does not update the cache list and memcached lists
   def GetCacheList(self):
     self.cache_manager_socket.send("Retrieve_cache_list")
     data = self.cache_manager_socket.recv(1024).decode()
@@ -48,6 +51,7 @@ class Server():
       for cache in caches:
         self.cache_list.append(cache)
     
+    
   def Get(self, key):
     value = None
 
@@ -58,12 +62,9 @@ class Server():
       try:
         if mem.get(key): # found value for key
           print "found key in caching layer"
-          print key
           value = mem.get(key)
-          print value
           break
       except pylibmc.Error:
-        print key
         print "Removing memcache machine"
         deactivated_memcaches.append(mem)
 
@@ -75,22 +76,19 @@ class Server():
       # Randomly contact a memcached server to insert
       index = random.randint(0, len(self.memcached) - 1)
       cache_machine = self.memcached[index]
-      print cache_machine
 
       # check if key exists in S3
       possible_key = self.bucket.get_key(int(key)) # not sure of response when key does not exist in S3
-      print possible_key
 
       if possible_key:
         print key + "retrieved key from S3"
         value = possible_key.get_contents_as_string()
-        print value
         # insert value into caching layer
-        cache_machine[str(key)] = value
-        print "after inserting into memcached"
+        print sys.getsizeof(value)
+        cache_machine[str(key)] = "poop" #value
 
         # determine whether or not to perform
-        self.KeepCacheKey(ip, key)
+        self.KeepCacheKey(self.cache_list[index], key)
       else:
         print "key %s is not in S3" % key
 
@@ -98,7 +96,7 @@ class Server():
 
   def KeepCacheKey(self, ip, key):
     print "in keep cache key"
-    keys = self.special_instance[ip]
+    keys= self.special_instance[str(ip)]
     keys.append(key)
     if len(keys) > 100:
       # remove keys until there is only 100
@@ -115,8 +113,8 @@ Stupid = Server(('localhost', 5001))
 counter = 0
 with open('wifi_data_original.txt', 'r') as ins: 
   for line in ins:
-    print line
-    Stupid.Get(line)
+    print list(line[:-2])
+    Stupid.Get(line[:-2])
 
     # Update the cache list every 200 requests
     counter += 1
