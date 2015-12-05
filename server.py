@@ -9,18 +9,7 @@ class Server():
 
 
   def __init__(self, cache_manager_address, client_address=('', 5000), maxClient=1):
-    # start up the client socket
-    #self.client_socket = socket.socket()
-    #self.client_socket.bind(client_address)
-    #self.client_socket.listen(maxClient)
-    #print("1")
-    #self.client_socket, self.client_addr = (self.client_socket.accept())
-    
-    # start up the manager socket
-    #self.cache_manager_socket = socket.socket()
-    #self.cache_manager_socket.bind(cache_manager_address)
-    #self.cache_manager_socket.listen(maxClient)
-    #self.cache_socket, self.cache_addr = (self.cache_manager_socket.accept())
+    # Setup cache_manager_socket
     self.cache_manager_socket = socket(AF_INET, SOCK_STREAM)
     self.cache_manager_socket.connect(cache_manager_address)
 
@@ -35,17 +24,8 @@ class Server():
 
     # Get cache machine IPs
     self.cache_list = []
-    self.cache_manager_socket.send("Retrieve_cache_list")
-    data = self.cache_manager_socket.recv(1024).decode()
-    if not data:
-      print "didn't get the list"
-    else:
-      print "got cache list"
-      print data
-      caches = data.split(",")
-      for cache in caches:
-        self.cache_list.append(cache)
-      
+    self.GetCacheList()
+     
     # connect to S3
     self.conn = boto.connect_s3()
     self.bucket = self.conn.create_bucket('magicalunicorn')
@@ -56,6 +36,18 @@ class Server():
       temp = pylibmc.Client([ip])
       self.memcached.append(temp)
 
+  def GetCacheList(self):
+    self.cache_manager_socket.send("Retrieve_cache_list")
+    data = self.cache_manager_socket.recv(1024).decode()
+    if not data:
+      print "didn't get the list"
+    else:
+      print "got cache list"
+      print data
+      caches = data.split(",")
+      for cache in caches:
+        self.cache_list.append(cache)
+    
   def Get(self, key):
     value = None
 
@@ -64,10 +56,12 @@ class Server():
     # Contact all servers
     for mem in self.memcached: 
       try:
-        if key in mem: # found value for key
+        if mem.get(key): # found value for key
+          print key + " found key in caching layer"
           value = mem[key]
           break
-      except:
+      except pylibmc.Error:
+        print "Removing memcache machine"
         deactivated_memcaches.append(mem)
 
     # Remove deactivated_memcaches from the cache list
@@ -75,22 +69,25 @@ class Server():
       self.memcached.remove(deactivated_cache)
 
     if not value: # value not in caching layer
-    # Randomly contact a memcached server to insert
+      # Randomly contact a memcached server to insert
       index = random.randint(0, len(self.memcached) - 1)
       cache_machine = self.memcached[index]
 
-    # contact S3 to get item
-    k = Key(self.bucket)
+      # contact S3 to get item
+      k = Key(self.bucket)
 
-    # check if key exists in S3
-    possible_key = self.bucket.get_key(key) # not sure of response when key does not exist in S3
+      # check if key exists in S3
+      possible_key = self.bucket.get_key(key) # not sure of response when key does not exist in S3
 
-    if possible_key:
-      value = k.get_contents_as_string()
-      # insert value into caching layer
-      cache_machine[key] = value
-      # determine whether or not to perform
-      self.KeepCacheKey(ip, key)
+      if possible_key:
+        print key + "retrieved key from S3"
+        value = k.get_contents_as_string()
+        # insert value into caching layer
+        cache_machine[key] = value
+        # determine whether or not to perform
+        self.KeepCacheKey(ip, key)
+      else:
+        print "key %s is not in S3" % key
 
     return value
 
@@ -108,6 +105,15 @@ class Server():
     self.memcached.append(pylibmc.Client([IpAddress]))
 
 
-Stupid=Server(('localhost', 5001))
-#Stupid.ListenRequests()
+Stupid = Server(('localhost', 5001))
+counter = 0
+with open('wifi_data_original.txt', 'r') as ins: 
+  for line in ins:
+    print line
+    Stupid.Get(line)
 
+    # Update the cache list every 200 requests
+    counter += 1
+    if counter % 200 == 0:
+      print "Updating the cache list"
+      Stupid.GetCacheList()

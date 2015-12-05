@@ -66,13 +66,14 @@ class CacheManager():
       thread.start_new_thread(handler, (clientsocket, clientaddr))
       counter = counter + 1
         
-      if counter == 2:
+      if counter == 10:
             #serversocket.close()
         print "got all the conections!"
         break
 
   def CreateSpecialInstance(self):
     instance = self.CreateNewMemcachedInstance()
+    print instance.ip_address
     self.special_instance = pylibmc.Client([instance.ip_address])
     
   def CreateNewCacheMachine(self):
@@ -202,7 +203,7 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(1, (.8, .9), 1)
+cache_manager = CacheManager(10, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
  cache_manager.AlterCachingLayer()
