@@ -57,10 +57,13 @@ class Server():
     for mem in self.memcached: 
       try:
         if mem.get(key): # found value for key
-          print key + " found key in caching layer"
-          value = mem[key]
+          print "found key in caching layer"
+          print key
+          value = mem.get(key)
+          print value
           break
       except pylibmc.Error:
+        print key
         print "Removing memcache machine"
         deactivated_memcaches.append(mem)
 
@@ -72,18 +75,20 @@ class Server():
       # Randomly contact a memcached server to insert
       index = random.randint(0, len(self.memcached) - 1)
       cache_machine = self.memcached[index]
-
-      # contact S3 to get item
-      k = Key(self.bucket)
+      print cache_machine
 
       # check if key exists in S3
-      possible_key = self.bucket.get_key(key) # not sure of response when key does not exist in S3
+      possible_key = self.bucket.get_key(int(key)) # not sure of response when key does not exist in S3
+      print possible_key
 
       if possible_key:
         print key + "retrieved key from S3"
-        value = k.get_contents_as_string()
+        value = possible_key.get_contents_as_string()
+        print value
         # insert value into caching layer
-        cache_machine[key] = value
+        cache_machine[str(key)] = value
+        print "after inserting into memcached"
+
         # determine whether or not to perform
         self.KeepCacheKey(ip, key)
       else:
@@ -92,6 +97,7 @@ class Server():
     return value
 
   def KeepCacheKey(self, ip, key):
+    print "in keep cache key"
     keys = self.special_instance[ip]
     keys.append(key)
     if len(keys) > 100:
