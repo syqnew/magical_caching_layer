@@ -66,7 +66,7 @@ class CacheManager():
       thread.start_new_thread(handler, (clientsocket, clientaddr))
       counter = counter + 1
         
-      if counter == 10:
+      if counter == 100:
             #serversocket.close()
         print "got all the conections!"
         break
@@ -174,6 +174,8 @@ class CacheManager():
         keys_list = keys_list[new_index:]
       self.special_instance[cache_machine_ips[i]] = keys_list
 
+    self.special_instance.delete([instance])
+
     # Terminate instance
     self.conn.terminate_instances([instance])
 
@@ -203,7 +205,7 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(10, (.8, .9), 1)
+cache_manager = CacheManager(100, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
  cache_manager.AlterCachingLayer()

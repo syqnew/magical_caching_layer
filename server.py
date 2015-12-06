@@ -38,7 +38,6 @@ class Server():
       self.memcached.append(temp)
       self.special_instance[ip] = []
 
-  # TODO: This does not update the cache list and memcached lists
   def GetCacheList(self):
     self.cache_manager_socket.send("Retrieve_cache_list")
     data = self.cache_manager_socket.recv(1024).decode()
@@ -48,9 +47,18 @@ class Server():
       print "got cache list"
       print data
       caches = data.split(",")
+      new_cache_list = []
+      new_memcached = []
       for cache in caches:
-        self.cache_list.append(cache)
-    
+        new_cache_list.append(cache)
+        if cache in self.cache_list:
+          new_memcached.append(self.memcached(self.cache_list.index(cache))
+        else:
+          new_memcached.append(pylibmc.Client([cache])
+
+      # Reassign the cache and memcached lists
+      self.cache_list = new_cache_list
+      self.memcached = memcached
     
   def Get(self, key):
     value = None
