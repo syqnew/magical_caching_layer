@@ -8,7 +8,6 @@ import sys
 
 class Server():
 
-
   def __init__(self, cache_manager_address, client_address=('', 5000), maxClient=1):
     # Setup cache_manager_socket
     self.cache_manager_socket = socket(AF_INET, SOCK_STREAM)
@@ -21,7 +20,7 @@ class Server():
       print "didn't get the special memcached ip"
     else:
       print "got special memcached ip"
-    self.special_instance = pylibmc.Client([special_ip])
+      self.special_instance = pylibmc.Client([special_ip])
 
     # Get cache machine IPs
     self.cache_list = []
@@ -44,23 +43,25 @@ class Server():
     if not data:
       print "didn't get the list"
     else:
-      print "got cache list"
-      print data
+      # print "got cache list"
+      # print data
       caches = data.split(",")
       new_cache_list = []
       new_memcached = []
       for cache in caches:
         new_cache_list.append(cache)
         if cache in self.cache_list:
-          new_memcached.append(self.memcached(self.cache_list.index(cache))
+          new_memcached.append(self.memcached[self.cache_list.index(cache)])
         else:
-          new_memcached.append(pylibmc.Client([cache])
+          new_memcached.append(pylibmc.Client([cache]))
+          self.special_instance[cache] = []
 
       # Reassign the cache and memcached lists
       self.cache_list = new_cache_list
-      self.memcached = memcached
+      self.memcached = new_memcached
     
   def Get(self, key):
+    # print key
     value = None
 
     deactivated_memcaches = []
@@ -69,11 +70,11 @@ class Server():
     for mem in self.memcached: 
       try:
         if mem.get(key): # found value for key
-          print "found key in caching layer"
+          # print "found key in caching layer"
           value = mem.get(key)
           break
       except pylibmc.Error:
-        print "Removing memcache machine"
+        # print "Removing memcache machine"
         deactivated_memcaches.append(mem)
 
     # Remove deactivated_memcaches from the cache list
@@ -89,21 +90,20 @@ class Server():
       possible_key = self.bucket.get_key(int(key)) # not sure of response when key does not exist in S3
 
       if possible_key:
-        print key + "retrieved key from S3"
+        # print key + "retrieved key from S3"
         value = possible_key.get_contents_as_string()
         # insert value into caching layer
-        print sys.getsizeof(value)
         cache_machine[str(key)] = "poop" #value
 
         # determine whether or not to perform
         self.KeepCacheKey(self.cache_list[index], key)
-      else:
-        print "key %s is not in S3" % key
+      # else:
+        # print "key %s is not in S3" % key
 
     return value
 
   def KeepCacheKey(self, ip, key):
-    print "in keep cache key"
+    # print "in keep cache key"
     keys= self.special_instance[str(ip)]
     keys.append(key)
     if len(keys) > 100:
@@ -120,12 +120,16 @@ class Server():
 Stupid = Server(('localhost', 5001))
 counter = 0
 with open('wifi_data_original.txt', 'r') as ins: 
+  start = time.time()
   for line in ins:
-    print list(line[:-2])
+    # print list(line[:-2])
     Stupid.Get(line[:-2])
 
     # Update the cache list every 200 requests
     counter += 1
     if counter % 200 == 0:
+      print time.time()
       print "Updating the cache list"
       Stupid.GetCacheList()
+  end = time.time()
+  print end - start
