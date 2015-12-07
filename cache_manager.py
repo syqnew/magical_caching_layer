@@ -66,7 +66,7 @@ class CacheManager():
       thread.start_new_thread(handler, (clientsocket, clientaddr))
       counter = counter + 1
         
-      if counter == 100:
+      if counter == 2:
             #serversocket.close()
         print "got all the conections!"
         break
@@ -101,6 +101,9 @@ class CacheManager():
     time.sleep(60)
     return instance
   
+  # TODO: Not an accurate hit rate since the server pings all the memcached machines creating unnecessary misses
+  # that forces the cache to continually expand. Might just include hit rate in special cache instance, which 
+  # is populated by server
   def CalculateHitRate(self, stats):
     hits = float(stats[0][1]["get_hits"])
     misses = float(stats[0][1]["get_misses"])
@@ -131,6 +134,8 @@ class CacheManager():
 
     if average == -1:
       return
+
+    print average
 
     # Check if average within range
     if average < self.hit_rate_range[0]:
@@ -189,6 +194,8 @@ class CacheManager():
     # Create a new cache machine - side effect adds the ip to cache list already
     self.CreateNewCacheMachine()
 
+    # TODO: make sure that this memcached instance can be contacted. AWS fuck up
+
     new_instance = cache_machine_ips[-1]
     new_keys = []
     # Query all active cache machines for a certain number
@@ -205,9 +212,9 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(100, (.8, .9), 1)
+cache_manager = CacheManager(2, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
  cache_manager.AlterCachingLayer()
- time.sleep(5) # wait five seconds
+ time.sleep(200) # wait five seconds
 
