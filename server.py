@@ -75,7 +75,7 @@ class Server():
     for mem in self.memcached: 
       try:
         if mem.get(key): # found value for key
-          # print "found key in caching layer"
+          print "found key in caching layer"
           value = mem.get(key)
           self.hits = self.hits + 1
           break
@@ -99,7 +99,8 @@ class Server():
         # print key + "retrieved key from S3"
         value = possible_key.get_contents_as_string()
         # insert value into caching layer
-        cache_machine[str(key)] = value
+        #cache_machine[str(key)] = value
+        self.setMemcacheKey(cache_machine, str(key), value)
 
         # determine whether or not to perform
         self.KeepCacheKey(self.cache_list[index], key)
@@ -114,6 +115,7 @@ class Server():
   def KeepCacheKey(self, ip, key):
     # print "in keep cache key"
     keys= self.special_instance[str(ip)]
+    print keys
     keys.append(key)
     if len(keys) > 100:
       # remove keys until there is only 100
@@ -142,7 +144,17 @@ class Server():
     self.hits = 0
     self.misses = 0
 
-Stupid = Server(('localhost', 5001))
+  def setMemcacheKey(self, client, key, value):
+    value_set = False
+    while not value_set:
+      try:
+        client[key] = value
+        value_set = True
+      except pylibmc.Error:
+        pass
+
+
+Stupid = Server(('localhost', 5000))
 counter = 0
 with open('wifi_data_original_quarter.txt', 'r') as ins: 
   start = time.time()
