@@ -37,6 +37,11 @@ class Server():
       self.memcached.append(temp)
       self.special_instance[ip] = []
 
+
+    # Client hit and miss counter
+    self.hits = 0
+    self.misses = 0
+
   def GetCacheList(self):
     self.cache_manager_socket.send("Retrieve_cache_list")
     data = self.cache_manager_socket.recv(1024).decode()
@@ -72,6 +77,7 @@ class Server():
         if mem.get(key): # found value for key
           # print "found key in caching layer"
           value = mem.get(key)
+          self.hits = self.hits + 1
           break
       except pylibmc.Error:
         # print "Removing memcache machine"
@@ -99,6 +105,9 @@ class Server():
         self.KeepCacheKey(self.cache_list[index], key)
       # else:
         # print "key %s is not in S3" % key
+
+        # increment miss counter
+        self.misses = self.misses + 1
 
     return value
 
@@ -131,5 +140,20 @@ with open('wifi_data_original.txt', 'r') as ins:
       print time.time()
       print "Updating the cache list"
       Stupid.GetCacheList()
+      # update hits and misses in the special instance and reset
+      set_misses = False
+      while not set_misses:
+        curr_miss_value = self.special_instance.gets("misses")
+        set_misses = self.special_instance.cas("misses", self.misses, curr_miss_value)
+
+      set_hits = False
+      while not set_hits:
+        curr_hit_value = self.special_instance.gets("hits")
+        set_hits = self.special_instance.cas("hits", self.hits, curr_hit_value)
+
+      # reset hits and misses counters to 0
+      self.hits = 0
+      self.misses = 0
+
   end = time.time()
   print end - start
