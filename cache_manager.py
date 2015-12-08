@@ -188,6 +188,7 @@ class CacheManager():
     self.CreateNewCacheMachine()
 
     # Make sure that this memcached instance can be contacted. Sometimes AWS gives us inaccessible machines
+    mc = None
     try: 
       mc = self.memcached[-1]
       mc.get_stats()
@@ -207,9 +208,7 @@ class CacheManager():
       key_value_pairs = self.memcached[index].get_multi(key_list)
       i = 0
       for key, value in key_value_pairs.iteritems():
-        print list(key)
-        print value
-        new_instance[str(key)] = value
+        mc[str(key)] = str(value)
         new_keys.append(key)
         
         i += 1
