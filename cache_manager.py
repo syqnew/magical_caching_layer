@@ -113,8 +113,8 @@ class CacheManager():
   
   def GetAverageHitRate(self):
     # get hits and misses from memcached
-    hits = self.special_instance["hits"]
-    misses = self.special_instance["misses"]
+    hits = float(self.special_instance["hits"])
+    misses = float(self.special_instance["misses"])
 
     if (hits + misses) == 0:
       return -1
@@ -218,6 +218,6 @@ class CacheManager():
 cache_manager = CacheManager(2, (.8, .9), 1)
 # periodically ping the cache machines
 while True:
- cache_manager.AlterCachingLayer()
  time.sleep(200) # wait five seconds
+ cache_manager.AlterCachingLayer()
 
