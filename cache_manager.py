@@ -7,13 +7,18 @@ import time
 import random
 
 cache_machine_ips = []
+special_instance_ip = None
 
 def handler(clientsocket, clientaddr):
     global cache_machine_ips
+    global special_instance_ip
     while True:
         data = clientsocket.recv(1024)
         if not data:
             break
+        elif data == "Get_special_memcached_instance":
+          print data
+          clientsocket.send(special_instance_ip)
         else:
             print data
             msg = ','.join(cache_machine_ips)
@@ -74,10 +79,13 @@ class CacheManager():
         break
 
   def CreateSpecialInstance(self):
+    global special_instance_ip
     instance = self.CreateNewMemcachedInstance()
     print instance.ip_address
     self.special_instance = pylibmc.Client([instance.ip_address], binary=False, behaviors={"cas": True})
-    
+    special_instance_ip = instance.ip_address
+
+
   def CreateNewCacheMachine(self):
     global cache_machine_ips
     instance = self.CreateNewMemcachedInstance()

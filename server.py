@@ -127,6 +127,7 @@ class Server():
 
   def UpdateHitsMisses(self):
     # update hits and misses in the special instance and reset
+    print self.special_instance
     set_misses = False
     while not set_misses:
       curr_miss_value = self.special_instance.gets("misses")
