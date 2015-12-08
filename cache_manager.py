@@ -43,8 +43,8 @@ class CacheManager():
     
     self.special_instance = None
     self.CreateSpecialInstance()
-    self.special_instance["hit"] = 0
-    self.special_instance["miss"] = 0
+    self.special_instance["hits"] = 0
+    self.special_instance["misses"] = 0
 
     self.CreateNewCacheMachine()
     print "Created a cache"
@@ -76,7 +76,7 @@ class CacheManager():
   def CreateSpecialInstance(self):
     instance = self.CreateNewMemcachedInstance()
     print instance.ip_address
-    self.special_instance = pylibmc.Client([instance.ip_address])
+    self.special_instance = pylibmc.Client([instance.ip_address], binary=False, behaviors={"cas": True})
     
   def CreateNewCacheMachine(self):
     global cache_machine_ips
@@ -105,8 +105,8 @@ class CacheManager():
   
   def GetAverageHitRate(self):
     # get hits and misses from memcached
-    hits = self.special_instance["hit"]
-    misses = self.special_instance["miss"]
+    hits = self.special_instance["hits"]
+    misses = self.special_instance["misses"]
 
     if (hits + misses) == 0:
       return -1

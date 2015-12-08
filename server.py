@@ -20,7 +20,7 @@ class Server():
       print "didn't get the special memcached ip"
     else:
       print "got special memcached ip"
-      self.special_instance = pylibmc.Client([special_ip])
+      self.special_instance = pylibmc.Client([special_ip], binary=False, behaviors={"cas": True})
 
     # Get cache machine IPs
     self.cache_list = []
@@ -125,6 +125,21 @@ class Server():
     self.cache_list.append(IpAddress)
     self.memcached.append(pylibmc.Client([IpAddress]))
 
+  def UpdateHitsMisses(self):
+    # update hits and misses in the special instance and reset
+    set_misses = False
+    while not set_misses:
+      curr_miss_value = self.special_instance.gets("misses")
+      set_misses = self.special_instance.cas("misses", self.misses + curr_miss_value[0], curr_miss_value[1])
+
+    set_hits = False
+    while not set_hits:
+      curr_hit_value = self.special_instance.gets("hits")
+      set_hits = self.special_instance.cas("hits", self.hits + curr_hit_value[0], curr_hit_value[1])
+
+    # reset hits and misses counters to 0
+    self.hits = 0
+    self.misses = 0
 
 Stupid = Server(('localhost', 5001))
 counter = 0
@@ -140,20 +155,7 @@ with open('wifi_data_original.txt', 'r') as ins:
       print time.time()
       print "Updating the cache list"
       Stupid.GetCacheList()
-      # update hits and misses in the special instance and reset
-      set_misses = False
-      while not set_misses:
-        curr_miss_value = self.special_instance.gets("misses")
-        set_misses = self.special_instance.cas("misses", self.misses, curr_miss_value)
-
-      set_hits = False
-      while not set_hits:
-        curr_hit_value = self.special_instance.gets("hits")
-        set_hits = self.special_instance.cas("hits", self.hits, curr_hit_value)
-
-      # reset hits and misses counters to 0
-      self.hits = 0
-      self.misses = 0
-
+      Stupid.UpdateHitsMisses()
+      
   end = time.time()
   print end - start
