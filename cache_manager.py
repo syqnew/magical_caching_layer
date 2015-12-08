@@ -99,7 +99,7 @@ class CacheManager():
     
   def CreateNewMemcachedInstance(self):
     # Create script to run on instance
-    script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo service memcached restart"
+    script = "#!/bin/bash\nsudo apt-get install memcached\nsudo sed -i '35s/.*/# -l 127.0.0.1/' /etc/memcached.conf\nsudo echo '-I 6M' >> /etc/memcached.conf\nsudo service memcached restart"
     # Create a new cache instance
     reservation = self.conn.run_instances('ami-5189a661', key_name='unicorn', instance_type='t2.micro', security_groups=['launch-wizard-6'], user_data=script)
 
@@ -207,7 +207,9 @@ class CacheManager():
       key_value_pairs = self.memcached[index].get_multi(key_list)
       i = 0
       for key, value in key_value_pairs.iteritems():
-        new_instance[key] = value
+        print list(key)
+        print value
+        new_instance[str(key)] = value
         new_keys.append(key)
         
         i += 1

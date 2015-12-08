@@ -99,7 +99,7 @@ class Server():
         # print key + "retrieved key from S3"
         value = possible_key.get_contents_as_string()
         # insert value into caching layer
-        cache_machine[str(key)] = "poop" #value
+        cache_machine[str(key)] = value
 
         # determine whether or not to perform
         self.KeepCacheKey(self.cache_list[index], key)
@@ -144,7 +144,7 @@ class Server():
 
 Stupid = Server(('localhost', 5001))
 counter = 0
-with open('wifi_data_original.txt', 'r') as ins: 
+with open('wifi_data_original_quarter.txt', 'r') as ins: 
   start = time.time()
   for line in ins:
     # print list(line[:-2])
@@ -153,6 +153,7 @@ with open('wifi_data_original.txt', 'r') as ins:
     # Update the cache list every 200 requests
     counter += 1
     if counter % 200 == 0:
+      print line
       print time.time()
       print "Updating the cache list"
       Stupid.GetCacheList()
