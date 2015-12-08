@@ -43,6 +43,8 @@ class CacheManager():
     
     self.special_instance = None
     self.CreateSpecialInstance()
+    self.special_instance["hit"] = 0
+    self.special_instance["miss"] = 0
 
     self.CreateNewCacheMachine()
     print "Created a cache"
@@ -101,32 +103,16 @@ class CacheManager():
     time.sleep(60)
     return instance
   
-  # TODO: Not an accurate hit rate since the server pings all the memcached machines creating unnecessary misses
-  # that forces the cache to continually expand. Might just include hit rate in special cache instance, which 
-  # is populated by server
-  def CalculateHitRate(self, stats):
-    hits = float(stats[0][1]["get_hits"])
-    misses = float(stats[0][1]["get_misses"])
+  def GetAverageHitRate(self):
+    # get hits and misses from memcached
+    hits = self.special_instance["hit"]
+    misses = self.special_instance["miss"]
+
     if (hits + misses) == 0:
       return -1
-    hit_rate = hits / (hits +  misses)
-    return hit_rate
 
-  def GetAverageHitRate(self):
-    averages = []
-
-    for mem in self.memcached:
-      print mem
-      stats = mem.get_stats()  
-      hit_rate = self.CalculateHitRate(stats)
-      if hit_rate >= 0:
-        averages.append(hit_rate)
-
-    # compute the average
-    if len(averages) > 0:
-      return sum(averages) / len(averages)
-    else:
-      return -1
+    average = hits / (hits + misses)
+    return average
 
   def AlterCachingLayer(self):
     # Get average
@@ -142,7 +128,6 @@ class CacheManager():
       self.ExpandCachingLayer()
     elif average > self.hit_rate_range[1]:
       self.ShrinkCachingLayer()
-
 
   def ShrinkCachingLayer(self):
     global cache_machine_ips
@@ -194,8 +179,18 @@ class CacheManager():
     # Create a new cache machine - side effect adds the ip to cache list already
     self.CreateNewCacheMachine()
 
-    # TODO: make sure that this memcached instance can be contacted. AWS fuck up
-
+    # Make sure that this memcached instance can be contacted. Sometimes AWS gives us inaccessible machines
+    try: 
+      mc = self.memcached[-1]
+      mc.get_stats()
+    except pylibmc.Error: 
+      # remove the inaccessible instance from the cache list, memcached list, and within the special instance
+      instance = cache_machine_ips[-1]
+      del cache_machine_ips[-1]
+      del self.memcached[-1]
+      self.special_instance.delete(instance)
+      return
+      
     new_instance = cache_machine_ips[-1]
     new_keys = []
     # Query all active cache machines for a certain number
