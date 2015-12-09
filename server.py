@@ -49,7 +49,7 @@ class Server():
       print "didn't get the list"
     else:
       # print "got cache list"
-      # print data
+      print data
       caches = data.split(",")
       new_cache_list = []
       new_memcached = []
@@ -64,6 +64,8 @@ class Server():
       # Reassign the cache and memcached lists
       self.cache_list = new_cache_list
       self.memcached = new_memcached
+
+      print self.cache_list
     
   def Get(self, key):
     # print key
@@ -75,7 +77,7 @@ class Server():
     for mem in self.memcached: 
       try:
         if mem.get(key): # found value for key
-          print "found key in caching layer"
+          #print "found key in caching layer"
           value = mem.get(key)
           self.hits = self.hits + 1
           break
@@ -115,7 +117,7 @@ class Server():
   def KeepCacheKey(self, ip, key):
     # print "in keep cache key"
     keys= self.special_instance[str(ip)]
-    print keys
+    #print keys
     keys.append(key)
     if len(keys) > 100:
       # remove keys until there is only 100
@@ -154,9 +156,9 @@ class Server():
         pass
 
 
-Stupid = Server(('localhost', 5000))
+Stupid = Server(('localhost', 5003))
 counter = 0
-with open('wifi_data_original_quarter.txt', 'r') as ins: 
+with open('wifi_data_original_half.txt', 'r') as ins: 
   start = time.time()
   for line in ins:
     # print list(line[:-2])

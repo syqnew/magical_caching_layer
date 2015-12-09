@@ -58,7 +58,7 @@ class CacheManager():
   
     # Creating sockets to connect to the servers
     host = ''
-    port = 5000
+    port = 5003
     buf = 1024
     addr = (host, port)
     serversocket = socket(AF_INET, SOCK_STREAM)
@@ -91,6 +91,8 @@ class CacheManager():
     instance = self.CreateNewMemcachedInstance()
 
     ip = instance.ip_address
+    print "ip address of new instance is"
+    print ip
     cache_machine_ips.append(ip)
     
     mc = pylibmc.Client([ip])
@@ -136,6 +138,8 @@ class CacheManager():
       self.ExpandCachingLayer()
     elif average > self.hit_rate_range[1]:
       self.ShrinkCachingLayer()
+    else:
+      print "not changing caching layer"
 
   def ShrinkCachingLayer(self):
     global cache_machine_ips
@@ -194,6 +198,7 @@ class CacheManager():
       mc.get_stats()
     except pylibmc.Error: 
       # remove the inaccessible instance from the cache list, memcached list, and within the special instance
+      print "deleting new instance"
       instance = cache_machine_ips[-1]
       del cache_machine_ips[-1]
       del self.memcached[-1]
@@ -216,9 +221,9 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(2, (.8, .9), 1)
+cache_manager = CacheManager(2, (.65, .75), 1)
 # periodically ping the cache machines
 while True:
- time.sleep(200) # wait five seconds
+ time.sleep(120) # wait five seconds
  cache_manager.AlterCachingLayer()
 
