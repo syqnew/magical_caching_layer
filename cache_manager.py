@@ -60,7 +60,7 @@ class CacheManager():
   
     # Creating sockets to connect to the servers
     host = ''
-    port = 5001
+    port = 5000
     buf = 1024
     addr = (host, port)
     serversocket = socket(AF_INET, SOCK_STREAM)

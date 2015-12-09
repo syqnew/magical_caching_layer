@@ -156,7 +156,7 @@ class Server():
         pass
 
 
-Stupid = Server(('localhost', 5001))
+Stupid = Server(('localhost', 5000))
 counter = 0
 with open('wifi_data_repeat_pattern_2_2_randomized.txt', 'r') as ins: 
   start = time.time()
