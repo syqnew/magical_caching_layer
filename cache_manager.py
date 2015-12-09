@@ -144,6 +144,15 @@ class CacheManager():
     else:
       print "not changing caching layer"
 
+  def GetInstanceId(self, ip):
+    # Find id of the instance
+    reservations = self.conn.get_all_reservations()
+    for reservation in reservations:
+      instances = reservation.instances
+      for instance in instances:
+        if instance.ip_address == ip: 
+          return instance.id
+
   def ShrinkCachingLayer(self):
     global cache_machine_ips
 
@@ -182,7 +191,8 @@ class CacheManager():
     self.special_instance.delete(instance)
 
     # Terminate instance
-    self.conn.terminate_instances([instance])
+    instance_id = self.GetInstanceId(instance)
+    self.conn.terminate_instances([instance_id])
 
   def ExpandCachingLayer(self):
     global cache_machine_ips
@@ -206,6 +216,8 @@ class CacheManager():
       del cache_machine_ips[-1]
       del self.memcached[-1]
       self.special_instance.delete(instance)
+      instance_id = self.GetInstanceId(instance)
+      self.conn.terminate_instances([instance_id])
       return
       
     new_instance = cache_machine_ips[-1]
