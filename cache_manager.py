@@ -60,7 +60,7 @@ class CacheManager():
   
     # Creating sockets to connect to the servers
     host = ''
-    port = 5000
+    port = 5001
     buf = 1024
     addr = (host, port)
     serversocket = socket(AF_INET, SOCK_STREAM)
@@ -188,7 +188,7 @@ class CacheManager():
         keys_list = keys_list[new_index:]
       self.special_instance[cache_machine_ips[i]] = keys_list
 
-    self.special_instance.delete(instance)
+    #self.special_instance.delete(instance)
 
     # Terminate instance
     instance_id = self.GetInstanceId(instance)

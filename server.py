@@ -50,6 +50,7 @@ class Server():
     else:
       print "got cache list"
       print data
+
       caches = data.split(",")
       new_cache_list = []
       new_memcached = []
@@ -88,6 +89,8 @@ class Server():
     # Remove deactivated_memcaches from the cache list
     for deactivated_cache in deactivated_memcaches:
       self.memcached.remove(deactivated_cache)
+      self.cache_list.remove(deactivated_cache.ip_address)
+
 
     if not value: # value not in caching layer
       # Randomly contact a memcached server to insert
@@ -156,7 +159,7 @@ class Server():
         pass
 
 
-Stupid = Server(('localhost', 5000))
+Stupid = Server(('localhost', 5001))
 counter = 0
 with open('wifi_data_repeat_pattern_2_2_randomized.txt', 'r') as ins: 
   start = time.time()
