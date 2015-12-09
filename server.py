@@ -166,7 +166,7 @@ with open('wifi_data_original_half.txt', 'r') as ins:
 
     # Update the cache list every 200 requests
     counter += 1
-    if counter % 200 == 0:
+    if counter % 50 == 0:
       print line
       print time.time()
       print "Updating the cache list"

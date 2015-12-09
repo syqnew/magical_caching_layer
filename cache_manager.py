@@ -94,6 +94,7 @@ class CacheManager():
     print "ip address of new instance is"
     print ip
     cache_machine_ips.append(ip)
+    print cache_machine_ips
     
     mc = pylibmc.Client([ip])
     self.memcached.append(mc)
@@ -221,7 +222,7 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(2, (.65, .75), 1)
+cache_manager = CacheManager(2, (.9, .95), 1)
 # periodically ping the cache machines
 while True:
  time.sleep(120) # wait five seconds
