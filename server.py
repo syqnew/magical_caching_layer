@@ -48,7 +48,7 @@ class Server():
     if not data:
       print "didn't get the list"
     else:
-      # print "got cache list"
+      print "got cache list"
       print data
       caches = data.split(",")
       new_cache_list = []
@@ -156,9 +156,9 @@ class Server():
         pass
 
 
-Stupid = Server(('localhost', 5003))
+Stupid = Server(('localhost', 5001))
 counter = 0
-with open('wifi_data_original_half.txt', 'r') as ins: 
+with open('wifi_data_repeat_pattern_2_2_randomized.txt', 'r') as ins: 
   start = time.time()
   for line in ins:
     # print list(line[:-2])

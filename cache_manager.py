@@ -22,6 +22,8 @@ def handler(clientsocket, clientaddr):
         else:
             print data
             msg = ','.join(cache_machine_ips)
+            print cache_machine_ips
+            print msg
             clientsocket.send(msg)
     clientsocket.close()
 
@@ -58,7 +60,7 @@ class CacheManager():
   
     # Creating sockets to connect to the servers
     host = ''
-    port = 5003
+    port = 5001
     buf = 1024
     addr = (host, port)
     serversocket = socket(AF_INET, SOCK_STREAM)
@@ -94,7 +96,7 @@ class CacheManager():
     print "ip address of new instance is"
     print ip
     cache_machine_ips.append(ip)
-    print cache_machine_ips
+    #print cache_machine_ips
     
     mc = pylibmc.Client([ip])
     self.memcached.append(mc)
@@ -177,7 +179,7 @@ class CacheManager():
         keys_list = keys_list[new_index:]
       self.special_instance[cache_machine_ips[i]] = keys_list
 
-    self.special_instance.delete([instance])
+    self.special_instance.delete(instance)
 
     # Terminate instance
     self.conn.terminate_instances([instance])
@@ -222,7 +224,7 @@ class CacheManager():
           break
     self.special_instance[new_instance] = new_keys
 
-cache_manager = CacheManager(2, (.9, .95), 1)
+cache_manager = CacheManager(2, (.60, .70), 1)
 # periodically ping the cache machines
 while True:
  time.sleep(120) # wait five seconds
