@@ -88,9 +88,10 @@ class Server():
 
     # Remove deactivated_memcaches from the cache list
     for deactivated_cache in deactivated_memcaches:
-      self.memcached.remove(deactivated_cache)
-      self.cache_list.remove(deactivated_cache.ip_address)
-
+      # find index of memcached 
+      index = self.memcached.index(deactivated_cache)
+      del self.memcached[index]
+      del self.cache_list[index]
 
     if not value: # value not in caching layer
       # Randomly contact a memcached server to insert
